@@ -34,6 +34,12 @@ Resources:
             Path: /session/signup
             Method: post
             RestApiId: !Ref MyApi
+        listUsers:
+            Type: Api 
+            Properties:
+              Path: /session/signup
+              Method: get
+              RestApiId: !Ref MyApi
 
 
   loginUsers:
