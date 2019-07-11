@@ -1,31 +1,32 @@
 const jwt = require("jsonwebtoken")
 require("./db/mongoose");
 const  User = require("./core/SessionData");
+//arn:aws:execute-api:us-east-2:114287217847:5cqm52yqai/ESTestInvoke-stage/GET/
+const arnList = {'arn:aws:execute-api:us-east-2:114287217847:5cqm52yqai/Prod/POST/session/signup':'super'}
+
 exports.handler = (event, context, callback) => {
     context.callbackWaitsForEmptyEventLoop = false
-    
-    // callback(convertToResponse(context));
 
-    const newUsers = JSON.parse(event.body);
-    const users = new User(newUsers); 
-        users.save().then((value) => {
-            let myResponse = {
-                'statusCode': 200,
-                'body': JSON.stringify({
-                   users:{
-                    users
-                },
-                   token:{
-                    token
-                   }
-            })};
-            callback(null, myResponse)
+    callback(null, convertToResponse(event));
+    // // convertToResponse(event)
+    // const newUsers = JSON.parse(event.body);
+    // const users = new User(newUsers); 
+    //     users.save().then((value) => {
+    //         let myResponse = {
+    //             'statusCode': 200,
+    //             'body': JSON.stringify({
+    //                users:{
+    //                 users
+    //             }
+                   
+    //         })};
+    //         callback(null, myResponse)
           
-        }).catch((err) => {
+    //     }).catch((err) => {
             
-            callback(Error(err), null)
+    //         callback(err, null)
           
-        });
+    //     });
 }
 
 // exports.auth = async(event) =>{
@@ -33,17 +34,25 @@ exports.handler = (event, context, callback) => {
 //     return event
 //   }
 exports.auth = async function (event) {
-  const token = event.authorizationToken
 // const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoib3NjYXIiLCJpYXQiOjE1NjI3Nzc1MjV9.hxYietHjsQc2fBKjBwefXN3NyH7grs4M4-Cswl-WNW0"
 
+  const token = event.authorizationToken
   const methodArn = event.methodArn
   const decoded = jwt.verify(token, "lamodaesteneruntokenentusession")
-  const user = await User.findOne({ _id: decoded._id, 'tokens.token': token })
+  try {
 
-  return generateAuthResponse('user', 'Allow', methodArn, user._id)
+    const user = await User.findOne({ _id: decoded._id})
+    console.log('HOla ', user);
+    const hasPermission = userHasPermission(methodArn,user.rol);
+    console.log("hasPermission", hasPermission);
+    const allowed = hasPermission ? 'Allow' : 'Deny'
+    console.log(user);
+    return  generateAuthResponse('user', allowed, methodArn, user._id)
 
+  } catch (err) {
+    return convertToError(err);
+  }
 }
-
 function generateAuthResponse (principalId, effect, methodArn, userId) {
   // If you need to provide additional information to your integration
   // endpoint (e.g. your Lambda Function), you can add it to `context`
@@ -126,8 +135,20 @@ const convertToResponse=(value)=>{
 const convertToError = (err)=>{
     return {
             'statusCode': 500,
-            'body': JSON.stringify(value),
+            'body': JSON.stringify(err),
             headers: {}
         }
+
+}
+
+const userHasPermission = (methodArn, rol)=>{
+
+  const arnValue = arnList[methodArn];
+  console.log('arnValue: ', arnValue);
+  console.log('rol: ',rol);
+  if (arnValue) {
+    return rol === arnValue;
+  }
+  return false;
 
 }
